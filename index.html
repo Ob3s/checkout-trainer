@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Checkout-Trainer</title>
+<meta name="theme-color" content="#18231E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Checkout">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>:root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}img{max-width:100%}</style>
+<script>window.__PWA__=true</script>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one full-height phone column, never scrolls. Start screen → game screen (top bar, scoreboard, input area that swaps to a result panel) */
+:root {
+  --bg: #ECEFEA;
+  --surface: #FFFFFF;
+  --line: #D3D9D2;
+  --ink: #18211C;
+  --muted: #5C6961;
+  --red: #C2342B;
+  --green: #1C774A;
+  --panel: #18231E;
+  --panel-ink: #F2F0E6;
+  --panel-muted: #9FB0A6;
+  --key: #F6F8F5;
+  --key-on: #18231E;
+  --key-on-ink: #F2F0E6;
+  --ok-bg: #E2F1E8;
+  --bad-bg: #F8E4E1;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101512; --surface: #18201C; --line: #2B3630; --ink: #E6EBE6; --muted: #98A69D;
+    --red: #E35C51; --green: #45AE78; --panel: #0A0E0C; --panel-ink: #F2F0E6; --panel-muted: #8FA096;
+    --key: #1F2924; --key-on: #E6EBE6; --key-on-ink: #101512; --ok-bg: #173325; --bad-bg: #3A1D1A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101512; --surface: #18201C; --line: #2B3630; --ink: #E6EBE6; --muted: #98A69D;
+  --red: #E35C51; --green: #45AE78; --panel: #0A0E0C; --panel-ink: #F2F0E6; --panel-muted: #8FA096;
+  --key: #1F2924; --key-on: #E6EBE6; --key-on-ink: #101512; --ok-bg: #173325; --bad-bg: #3A1D1A;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { height: 100%; }
+body { height: 100%; margin: 0; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.35; padding: 0 14px; padding-block: 10px; -webkit-user-select: none; user-select: none; overscroll-behavior: none; }
+#app { height: 100%; max-width: 460px; margin: 0 auto; display: flex; flex-direction: column; min-height: 0; }
+.view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+
+button { font: inherit; color: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--key); border-radius: 10px; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+button:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+button:disabled { opacity: .35; cursor: default; }
+button:active:not(:disabled) { transform: translateY(1px); }
+.primary { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
+
+/* ---- Start ---- */
+.start-head { padding-top: 2vh; }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh, 3.2rem); line-height: .95; margin: 0; letter-spacing: .01em; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .12em; }
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mode { text-align: left; padding: 12px; display: flex; flex-direction: column; gap: 4px; background: var(--surface); border-radius: 14px; }
+.mode-name { font-family: var(--display); font-weight: 700; font-size: 1.35rem; line-height: 1; }
+.mode-desc { font-size: .85rem; color: var(--muted); }
+.mode-best { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: auto; padding-top: 4px; }
+.mode-best b { font-family: var(--display); font-size: 1.05rem; color: inherit; letter-spacing: 0; }
+.mode[aria-pressed="true"] { background: var(--panel); border-color: var(--panel); color: var(--panel-ink); }
+.mode[aria-pressed="true"] .mode-desc, .mode[aria-pressed="true"] .mode-best { color: var(--panel-muted); }
+.mode[aria-pressed="true"] .mode-best b { color: var(--panel-ink); }
+.setting { display: flex; flex-direction: column; gap: 5px; }
+.set-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+.seg button { border: 0; background: transparent; padding: 9px 4px; font-weight: 600; font-size: .95rem; border-radius: 8px; }
+.seg button[aria-pressed="true"] { background: var(--key-on); color: var(--key-on-ink); }
+.start-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
+.big { padding: 16px; font-size: 1.15rem; border-radius: 14px; }
+.link { border: 0; background: transparent; color: var(--muted); padding: 8px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---- Game ---- */
+.topbar { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.back { width: 40px; height: 40px; font-size: 1.5rem; line-height: 1; padding: 0; flex: none; }
+.top-title { font-weight: 600; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-stats { font-size: .85rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.top-stats b { color: var(--ink); font-family: var(--display); font-size: 1.1rem; }
+.timer { position: relative; height: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; flex: none; }
+.timer-fill { position: absolute; inset: 0; width: 100%; background: var(--green); opacity: .85; transform-origin: left; }
+.timer.low .timer-fill { background: var(--red); }
+.timer-txt { position: absolute; inset: 0; display: grid; place-items: center; font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+.board { background: var(--panel); color: var(--panel-ink); border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; flex: none; }
+.board .row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.label { font-size: .7rem; text-transform: uppercase; letter-spacing: .12em; color: var(--panel-muted); }
+.big-num { font-family: var(--display); font-weight: 700; font-size: clamp(3rem, 10vh, 5.4rem); line-height: .9; font-variant-numeric: tabular-nums; }
+.mid-num { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh, 3rem); line-height: .95; font-variant-numeric: tabular-nums; }
+.meta { text-align: right; font-size: .88rem; color: var(--panel-muted); font-variant-numeric: tabular-nums; }
+.meta b { color: var(--panel-ink); font-weight: 600; }
+.slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.slot { border: 1px dashed color-mix(in srgb, var(--panel-muted) 60%, transparent); border-radius: 10px; padding: 4px; text-align: center; font-family: var(--display); font-weight: 600; font-size: clamp(1.15rem, 3.4vh, 1.5rem); color: var(--panel-muted); line-height: 1.3; }
+.slot.filled { border-style: solid; border-color: transparent; background: color-mix(in srgb, var(--panel-ink) 10%, transparent); color: var(--panel-ink); }
+.slot.t { color: #FF8A80; }
+.slot.d { color: #7FDCA6; }
+.slot small { font-family: var(--body); font-size: .7rem; font-weight: 500; color: var(--panel-muted); margin-left: 4px; }
+
+.area { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.mult { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; flex: none; }
+.mult button { padding: 8px 4px; font-weight: 600; font-size: .95rem; }
+.mult button[aria-pressed="true"] { background: var(--key-on); color: var(--key-on-ink); border-color: var(--key-on); }
+.mult button[data-m="2"][aria-pressed="true"] { background: var(--green); border-color: var(--green); color: #fff; }
+.mult button[data-m="3"][aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
+.nums { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, 1fr); grid-auto-rows: 1fr; gap: 6px; }
+.nums button { font-family: var(--display); font-weight: 600; font-size: clamp(1.1rem, 3.2vh, 1.45rem); font-variant-numeric: tabular-nums; padding: 0; min-height: 0; }
+.nums .w2 { grid-column: span 2; }
+.nums .w3 { grid-column: span 3; font-family: var(--body); font-size: .95rem; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex: none; }
+.actions button { padding: 11px 6px; font-weight: 600; font-size: .95rem; }
+
+.result { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.feedback { flex: 1; min-height: 0; overflow: hidden; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; gap: 6px; font-size: 1rem; }
+.feedback.ok { background: var(--ok-bg); }
+.feedback.bad { background: var(--bad-bg); }
+.feedback strong { font-family: var(--display); font-size: 1.6rem; font-weight: 700; line-height: 1.05; }
+.feedback .route { font-family: var(--display); font-weight: 600; font-size: 1.5rem; letter-spacing: .02em; line-height: 1.2; }
+.feedback .hint { color: var(--muted); font-size: .92rem; }
+.next { padding: 18px; font-size: 1.15rem; border-radius: 14px; flex: none; }
+.auto-bar { height: 4px; border-radius: 4px; background: color-mix(in srgb, #fff 45%, transparent); transform-origin: left; margin-top: 6px; }
+
+.q { margin: 0; font-weight: 600; font-size: 1rem; flex: none; }
+.note { min-height: 2.5em; font-size: .9rem; flex: none; display: flex; align-items: center; color: var(--muted); }
+.note.ok { color: var(--green); }
+.note.bad { color: var(--red); }
+.entry { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 2px 14px; font-family: var(--display); font-weight: 700; font-size: clamp(1.9rem, 6vh, 2.6rem); text-align: right; font-variant-numeric: tabular-nums; flex: none; }
+.entry.empty { color: var(--muted); }
+.keys { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 6px; }
+.keys button { font-family: var(--display); font-weight: 600; font-size: clamp(1.3rem, 3.6vh, 1.6rem); padding: 0; min-height: 0; }
+.keys .ok-key { background: var(--green); border-color: var(--green); color: #fff; }
+
+/* ---- Spickzettel ---- */
+.cheat { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.cheat h3 { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 10px 0 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips span { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.cheat p { margin: 4px 0 0; font-size: .92rem; color: var(--muted); max-width: 65ch; }
+
+@media (max-height: 640px) {
+  .view { gap: 7px; }
+  .board { padding: 9px 12px; gap: 6px; }
+  .mode { padding: 9px; }
+  .mode-desc { display: none; }
+  .seg button { padding: 7px 4px; }
+  .big { padding: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div id="app">
+  <!-- START -->
+  <section class="view" id="v-start">
+    <header class="start-head">
+      <h1>Checkout-<br>Trainer</h1>
+      <p class="sub">Steeldart · 501 · Double Out</p>
+    </header>
+    <div class="modes">
+      <button class="mode" data-mode="co" aria-pressed="true">
+        <span class="mode-name">Checkout</span>
+        <span class="mode-desc">Rest sehen, Weg zum Doppel eintippen</span>
+        <span class="mode-best">Beste Serie <b id="best-co">0</b></span>
+      </button>
+      <button class="mode" data-mode="sc" aria-pressed="false">
+        <span class="mode-name">Aufnahme zählen</span>
+        <span class="mode-desc">Punkte und neuen Rest im Kopf rechnen</span>
+        <span class="mode-best">Beste Serie <b id="best-sc">0</b></span>
+      </button>
+    </div>
+    <div class="setting" id="set-level">
+      <span class="set-label">Restbereich</span>
+      <div class="seg" id="seg-level">
+        <button data-v="40">Bis 40</button><button data-v="100">Bis 100</button><button data-v="170">Bis 170</button>
+      </div>
+    </div>
+    <div class="setting">
+      <span class="set-label">Timer pro Frage</span>
+      <div class="seg" id="seg-timer">
+        <button data-v="0">Aus</button><button data-v="10">10 s</button><button data-v="20">20 s</button><button data-v="30">30 s</button>
+      </div>
+    </div>
+    <div class="setting">
+      <span class="set-label">Nach richtiger Antwort</span>
+      <div class="seg" id="seg-auto">
+        <button data-v="1">Automatisch weiter</button><button data-v="0">Auf Tippen warten</button>
+      </div>
+    </div>
+    <div class="start-foot">
+      <button class="primary big" id="btn-start">Training starten</button>
+      <button class="link" id="btn-cheat">Spickzettel</button>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section class="view" id="v-game" hidden>
+    <div class="topbar">
+      <button class="back" id="btn-back" aria-label="Zur Startseite">‹</button>
+      <span class="top-title" id="top-title">Checkout</span>
+      <span class="top-stats"><b id="st-ok">0/0</b> · Serie <b id="st-streak">0</b></span>
+    </div>
+    <div class="timer" id="timer" hidden><div class="timer-fill" id="timer-fill"></div><span class="timer-txt" id="timer-txt"></span></div>
+
+    <!-- Checkout -->
+    <div class="view" id="g-co">
+      <div class="board">
+        <div class="row">
+          <div><div class="label">Rest</div><div class="big-num" id="co-rest">81</div></div>
+          <div class="meta">Geworfen <b id="co-thrown">0</b><br>Offen <b id="co-open">81</b></div>
+        </div>
+        <div class="slots" id="co-slots"></div>
+      </div>
+      <div class="area" id="co-play">
+        <div class="mult" id="mult">
+          <button data-m="1" aria-pressed="true">Single</button>
+          <button data-m="2" aria-pressed="false">Double</button>
+          <button data-m="3" aria-pressed="false">Triple</button>
+        </div>
+        <div class="nums" id="nums"></div>
+        <div class="actions">
+          <button id="co-show">Lösung zeigen</button>
+          <button id="co-skip">Überspringen</button>
+        </div>
+      </div>
+      <div class="result" id="co-result" hidden></div>
+    </div>
+
+    <!-- Aufnahme -->
+    <div class="view" id="g-sc" hidden>
+      <div class="board">
+        <div class="row">
+          <div><div class="label">Rest vorher</div><div class="mid-num" id="sc-old">301</div></div>
+          <div class="meta" id="sc-meta">Schritt <b>1</b> von 2</div>
+        </div>
+        <div class="slots" id="sc-slots"></div>
+      </div>
+      <p class="q" id="sc-q">Wie viele Punkte?</p>
+      <div class="note" id="sc-note"></div>
+      <div class="entry empty" id="sc-entry">0</div>
+      <div class="area" id="sc-play"><div class="keys" id="keys"></div></div>
+      <div class="result" id="sc-result" hidden></div>
+    </div>
+  </section>
+
+  <!-- SPICKZETTEL -->
+  <section class="view" id="v-cheat" hidden>
+    <div class="topbar">
+      <button class="back" id="cheat-back" aria-label="Zur Startseite">‹</button>
+      <span class="top-title">Spickzettel</span>
+    </div>
+    <div class="cheat">
+      <h3>Triples</h3>
+      <div class="chips"><span>T20 = 60</span><span>T19 = 57</span><span>T18 = 54</span><span>T17 = 51</span><span>T16 = 48</span><span>T15 = 45</span><span>T14 = 42</span><span>T13 = 39</span><span>T12 = 36</span><span>T11 = 33</span><span>T10 = 30</span></div>
+      <h3>Typische Aufnahmen</h3>
+      <div class="chips"><span>20·5·1 = 26</span><span>20·20·1 = 41</span><span>20·20·5 = 45</span><span>T20·20·1 = 81</span><span>T20·20·5 = 85</span><span>T20·T20·1 = 121</span><span>T20·T20·5 = 125</span><span>T20·T20·20 = 140</span></div>
+      <h3>Lieblingsdoppel</h3>
+      <div class="chips"><span>40 = D20</span><span>32 = D16</span><span>36 = D18</span><span>24 = D12</span><span>16 = D8</span></div>
+      <h3>Nicht checkbar</h3>
+      <div class="chips"><span>159</span><span>162</span><span>163</span><span>165</span><span>166</span><span>168</span><span>169</span><span>über 170</span></div>
+      <h3>Rechentrick</h3>
+      <p>Über runde Zahlen abziehen: 301 − 81 = 301 − 100 + 19 = 220.</p>
+      <p>Bei ungeraden Resten bis 40 mit einer kleinen Zahl auf D16 oder D8 stellen, z. B. 37 = 5 · D16.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('ct-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('ct-' + k, JSON.stringify(v)); } catch (e) {} }
+  };
+  const rnd = n => Math.floor(Math.random() * n);
+  const pick = a => a[rnd(a.length)];
+
+  // ---------- Darts ----------
+  const val = d => d.m * d.n;
+  const label = d => d.n === 25 ? (d.m === 2 ? 'Bull' : '25') : (d.m === 3 ? 'T' : d.m === 2 ? 'D' : '') + d.n;
+  const routeText = r => r.map(label).join(' · ');
+  // Gängige Checkout-Wege. Mehrere Wege mit | getrennt, der erste ist der Hauptweg.
+  const STD_RAW = {"2":"D1","3":"1 D1","4":"D2","5":"1 D2","6":"D3","7":"3 D2","8":"D4","9":"1 D4","10":"D5","11":"3 D4","12":"D6","13":"5 D4","14":"D7","15":"7 D4","16":"D8","17":"1 D8","18":"D9","19":"3 D8","20":"D10","21":"5 D8","22":"D11","23":"7 D8","24":"D12","25":"9 D8","26":"D13","27":"11 D8","28":"D14","29":"13 D8","30":"D15","31":"15 D8","32":"D16","33":"1 D16","34":"D17","35":"3 D16","36":"D18","37":"5 D16","38":"D19","39":"7 D16","40":"D20","41":"9 D16|1 D20","42":"10 D16|2 D20","43":"11 D16|3 D20","44":"12 D16|4 D20","45":"13 D16|5 D20","46":"6 D20|14 D16","47":"15 D16|7 D20","48":"16 D16|8 D20","49":"17 D16|9 D20","50":"Bull|18 D16|10 D20","51":"19 D16|11 D20","52":"20 D16|12 D20","53":"13 D20","54":"14 D20","55":"15 D20","56":"16 D20","57":"17 D20","58":"18 D20","59":"19 D20","60":"20 D20","61":"T15 D8|25 D18","62":"T10 D16","63":"T13 D12","64":"T16 D8","65":"T19 D4|25 D20","66":"T10 D18","67":"T17 D8","68":"T20 D4|T16 D10","69":"T19 D6|T15 D12","70":"T18 D8|T10 D20","71":"T13 D16","72":"T16 D12","73":"T19 D8","74":"T14 D16","75":"T17 D12","76":"T20 D8","77":"T19 D10|T15 D16","78":"T18 D12","79":"T19 D11|T13 D20","80":"T20 D10|T16 D16","81":"T19 D12|T15 D18","82":"Bull D16|T14 D20","83":"T17 D16","84":"T20 D12|T16 D18","85":"T15 D20","86":"T18 D16","87":"T17 D18","88":"T16 D20|T20 D14","89":"T19 D16","90":"T20 D15|T18 D18|Bull D20","91":"T17 D20","92":"T20 D16","93":"T19 D18","94":"T18 D20","95":"T19 D19|Bull 5 D20","96":"T20 D18","97":"T19 D20","98":"T20 D19","99":"T19 10 D16","100":"T20 D20","101":"T17 Bull|T20 1 D20|T20 9 D16","102":"T20 10 D16|T20 2 D20","103":"T20 3 D20|T19 6 D20|T20 11 D16","104":"T18 Bull|T20 12 D16|T19 7 D20","105":"T20 13 D16|T19 8 D20","106":"T20 10 D18|T20 6 D20","107":"T19 Bull|T19 10 D20","108":"T20 16 D16|T19 19 D16","109":"T20 9 D20|T19 12 D20","110":"T20 Bull|T20 10 D20","111":"T20 11 D20","112":"T20 12 D20","113":"T20 13 D20","114":"T20 14 D20","115":"T20 15 D20","116":"T20 16 D20","117":"T20 17 D20","118":"T20 18 D20","119":"T19 T12 D13|T20 T13 D10","120":"T20 20 D20","121":"T20 T11 D14|T17 T10 D20|T20 11 Bull","122":"T18 T20 D4|T18 18 Bull","123":"T19 T16 D9|T19 16 Bull","124":"T20 T16 D8|T20 14 Bull","125":"25 T20 D20|Bull 25 Bull|T20 T15 D10","126":"T19 T19 D6|T19 T15 D12","127":"T20 T17 D8","128":"T18 T14 D16|T20 T20 D4","129":"T19 T16 D12|T19 T12 D18","130":"T20 T18 D8|T20 20 Bull","131":"T20 T13 D16","132":"T20 T16 D12|Bull Bull D16","133":"T20 T19 D8","134":"T20 T14 D16","135":"T20 T17 D12|Bull T15 D20","136":"T20 T20 D8","137":"T20 T19 D10|T17 T18 D16","138":"T20 T18 D12","139":"T20 T13 D20|T19 T14 D20","140":"T20 T20 D10","141":"T20 T19 D12","142":"T20 T14 D20","143":"T20 T17 D16","144":"T20 T20 D12","145":"T20 T15 D20","146":"T20 T18 D16","147":"T20 T17 D18","148":"T20 T16 D20","149":"T20 T19 D16","150":"T20 T18 D18|Bull Bull Bull","151":"T20 T17 D20","152":"T20 T20 D16","153":"T20 T19 D18","154":"T20 T18 D20","155":"T20 T19 D19","156":"T20 T20 D18","157":"T20 T19 D20","158":"T20 T20 D19","160":"T20 T20 D20","161":"T20 T17 Bull","164":"T20 T18 Bull","167":"T20 T19 Bull","170":"T20 T20 Bull"};
+  const parseDart = t => t === 'Bull' ? { m: 2, n: 25 } : t === '25' ? { m: 1, n: 25 } : t[0] === 'T' ? { m: 3, n: +t.slice(1) } : t[0] === 'D' ? { m: 2, n: +t.slice(1) } : { m: 1, n: +t };
+  const STD = {};
+  for (const k in STD_RAW) STD[k] = STD_RAW[k].split('|').map(r => r.split(' ').map(parseDart));
+  const key = r => r.slice(0, -1).map(label).sort().join(',') + '>' + label(r[r.length - 1]);
+  const isStd = (rest, r) => STD[rest].some(s => key(s) === key(r));
+  const stdHTML = rest => STD[rest].map(routeText).join('<br>');
+  const CHECKABLE = Object.keys(STD).map(Number);
+
+  // ---------- Einstellungen & Statistik ----------
+  const cfg = { mode: store.get('mode', 'co'), level: store.get('level', 100), timer: store.get('timer', 0), auto: store.get('auto', 1) };
+  const best = { co: store.get('best-co', 0), sc: store.get('best-sc', 0) };
+  let st = { ok: 0, total: 0, streak: 0 };
+
+  function segInit(id, prop, after) {
+    const btns = [...$(id).querySelectorAll('button')];
+    const paint = () => btns.forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === +cfg[prop])));
+    btns.forEach(b => b.addEventListener('click', () => { cfg[prop] = +b.dataset.v; store.set(prop, cfg[prop]); paint(); after && after(); }));
+    paint();
+  }
+  const modeBtns = [...document.querySelectorAll('.mode')];
+  function paintMode() {
+    modeBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === cfg.mode)));
+    $('set-level').hidden = cfg.mode !== 'co';
+  }
+  modeBtns.forEach(b => b.addEventListener('click', () => { cfg.mode = b.dataset.mode; store.set('mode', cfg.mode); paintMode(); }));
+  segInit('seg-level', 'level'); segInit('seg-timer', 'timer'); segInit('seg-auto', 'auto');
+  paintMode();
+  function paintBest() { $('best-co').textContent = best.co; $('best-sc').textContent = best.sc; }
+  paintBest();
+
+  function score(ok) {
+    st.total++;
+    if (ok) { st.ok++; st.streak++; if (st.streak > best[cfg.mode]) { best[cfg.mode] = st.streak; store.set('best-' + cfg.mode, st.streak); } }
+    else st.streak = 0;
+    $('st-ok').textContent = st.ok + '/' + st.total;
+    $('st-streak').textContent = st.streak;
+  }
+
+  // ---------- Views ----------
+  function show(v) { ['v-start', 'v-game', 'v-cheat'].forEach(id => $(id).hidden = id !== v); }
+  $('btn-cheat').addEventListener('click', () => show('v-cheat'));
+  $('cheat-back').addEventListener('click', () => show('v-start'));
+  $('btn-back').addEventListener('click', () => { stopTimer(); clearAuto(); paintBest(); show('v-start'); });
+  $('btn-start').addEventListener('click', () => {
+    st = { ok: 0, total: 0, streak: 0 };
+    $('st-ok').textContent = '0/0'; $('st-streak').textContent = '0';
+    $('top-title').textContent = cfg.mode === 'co' ? `Checkout · bis ${cfg.level}` : 'Aufnahme zählen';
+    $('g-co').hidden = cfg.mode !== 'co'; $('g-sc').hidden = cfg.mode !== 'sc';
+    show('v-game');
+    cfg.mode === 'co' ? coNew() : scNew();
+  });
+
+  // ---------- Timer ----------
+  let tInt = null, tEnd = 0;
+  function startTimer(onEnd) {
+    stopTimer();
+    const el = $('timer');
+    if (!cfg.timer) { el.hidden = true; return; }
+    el.hidden = false;
+    const total = cfg.timer * 1000;
+    tEnd = Date.now() + total;
+    const tick = () => {
+      const left = Math.max(0, tEnd - Date.now());
+      $('timer-fill').style.transform = `scaleX(${left / total})`;
+      $('timer-txt').textContent = Math.ceil(left / 1000) + ' s';
+      el.classList.toggle('low', left < 4000);
+      if (left <= 0) { stopTimer(); onEnd(); }
+    };
+    tick(); tInt = setInterval(tick, 100);
+  }
+  function stopTimer() { clearInterval(tInt); tInt = null; }
+
+  // ---------- Ergebnis-Panel ----------
+  let autoT = null;
+  function clearAuto() { clearTimeout(autoT); autoT = null; }
+  function showResult(panel, playEls, ok, html, next) {
+    stopTimer();
+    playEls.forEach(e => e.hidden = true);
+    const auto = ok && cfg.auto;
+    panel.innerHTML = `<div class="feedback ${ok ? 'ok' : 'bad'}">${html}</div>
+      <button class="primary next" id="${panel.id}-next">Nächste Frage${auto ? '<div class="auto-bar"></div>' : ''}</button>`;
+    panel.hidden = false;
+    const btn = $(panel.id + '-next');
+    btn.addEventListener('click', () => { clearAuto(); next(); });
+    btn.focus({ preventScroll: true });
+    if (auto) {
+      const bar = panel.querySelector('.auto-bar');
+      bar.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: 1600, easing: 'linear', fill: 'forwards' });
+      autoT = setTimeout(next, 1600);
+    }
+  }
+  function slotHTML(d, withVal) {
+    if (!d) return '<div class="slot">–</div>';
+    const cls = d.m === 3 ? ' t' : d.m === 2 ? ' d' : '';
+    return `<div class="slot filled${cls}">${label(d)}${withVal ? `<small>${val(d)}</small>` : ''}</div>`;
+  }
+
+  // ---------- Checkout ----------
+  let rest = 0, darts = [], mult = 1, coDone = false;
+  const nums = $('nums');
+  for (let n = 1; n <= 20; n++) nums.insertAdjacentHTML('beforeend', `<button data-n="${n}">${n}</button>`);
+  nums.insertAdjacentHTML('beforeend', `<button data-n="25" class="w2" id="bull-btn">25</button><button class="w3" id="co-undo">⌫ Dart löschen</button>`);
+  const multBtns = [...$('mult').querySelectorAll('button')];
+  function setMult(m) {
+    mult = m;
+    multBtns.forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.m === m)));
+    $('bull-btn').textContent = m === 2 ? 'Bull' : '25';
+    $('bull-btn').disabled = m === 3;
+  }
+  function coNew() {
+    clearAuto();
+    const lvl = cfg.level;
+    let pool = CHECKABLE.filter(r => r <= lvl);
+    // die obere Hälfte des Bereichs öfter abfragen
+    if (lvl > 40 && Math.random() < 0.55) pool = pool.filter(r => r > (lvl === 170 ? 100 : 40));
+    let r = pick(pool);
+    if (r === rest) r = pick(pool);
+    rest = r; darts = []; coDone = false;
+    $('co-play').hidden = false; $('co-result').hidden = true;
+    setMult(1); coRender();
+    startTimer(() => coFinish(false, `<strong>Zeit abgelaufen.</strong><span class="hint">Gängiger Weg für ${rest}:</span><span class="route">${stdHTML(rest)}</span>`));
+  }
+  function coRender() {
+    const thrown = darts.reduce((s, d) => s + val(d), 0);
+    $('co-rest').textContent = rest;
+    $('co-thrown').textContent = thrown;
+    $('co-open').textContent = rest - thrown;
+    $('co-slots').innerHTML = [0, 1, 2].map(i => slotHTML(darts[i], true)).join('');
+    $('co-undo').disabled = darts.length === 0;
+  }
+  function coFinish(ok, html) {
+    if (coDone) return;
+    coDone = true; score(ok); coRender();
+    showResult($('co-result'), [$('co-play')], ok, html, coNew);
+  }
+  function coCheck() {
+    const sum = darts.reduce((s, d) => s + val(d), 0);
+    const last = darts[darts.length - 1];
+    const sol = `<span class="hint">Gängiger Weg für ${rest}:</span><span class="route">${stdHTML(rest)}</span>`;
+    if (sum === rest && last.m === 2) {
+      if (isStd(rest, darts)) {
+        const others = STD[rest].filter(r => key(r) !== key(darts));
+        coFinish(true, `<strong>Gecheckt – gängiger Weg!</strong><span class="route">${routeText(darts)}</span>${others.length ? `<span class="hint">Auch üblich: ${others.map(routeText).join(' oder ')}</span>` : ''}`);
+      } else {
+        const shortest = Math.min(...STD[rest].map(r => r.length));
+        const fewer = darts.length > shortest ? ` Geht mit ${shortest} Dart${shortest > 1 ? 's' : ''}.` : '';
+        coFinish(true, `<strong>Gecheckt, aber unüblich.</strong><span class="hint">Gängig ist:${fewer}</span><span class="route">${stdHTML(rest)}</span>`);
+      }
+    } else if (sum === rest) coFinish(false, `<strong>Kein Doppel am Ende.</strong><span class="hint">Summe stimmt, aber der letzte Dart muss ein Double oder Bull sein.</span>${sol}`);
+    else if (sum > rest) coFinish(false, `<strong>Überworfen.</strong><span class="hint">${sum} geworfen, Rest war ${rest}.</span>${sol}`);
+    else if (rest - sum === 1) coFinish(false, `<strong>Rest 1 – überworfen.</strong><span class="hint">Mit 1 Punkt kann man nicht auschecken.</span>${sol}`);
+    else if (darts.length === 3) coFinish(false, `<strong>Zu wenig.</strong><span class="hint">${sum} von ${rest} geworfen, ${rest - sum} bleiben.</span>${sol}`);
+    else coRender();
+  }
+  nums.addEventListener('click', e => {
+    const b = e.target.closest('button[data-n]'); if (!b || coDone) return;
+    const n = +b.dataset.n; if (n === 25 && mult === 3) return;
+    darts.push({ m: mult, n }); setMult(1); coCheck();
+  });
+  $('co-undo').addEventListener('click', () => { if (!coDone) { darts.pop(); coRender(); } });
+  multBtns.forEach(b => b.addEventListener('click', () => setMult(+b.dataset.m)));
+  $('co-show').addEventListener('click', () => coFinish(false, `<strong>Lösung für ${rest}</strong><span class="route">${stdHTML(rest)}</span>`));
+  $('co-skip').addEventListener('click', () => { stopTimer(); coNew(); });
+
+  // ---------- Aufnahme zählen ----------
+  const ZONES = [{ main: 20, nb: [1, 5] }, { main: 20, nb: [1, 5] }, { main: 19, nb: [7, 3] }];
+  let sc = { darts: [], old: 0, step: 1, input: '', locked: false };
+  const total = () => sc.darts.reduce((s, d) => s + val(d), 0);
+  function throwDart(z) {
+    const r = Math.random(), q = Math.random();
+    const n = r < 0.6 ? z.main : r < 0.8 ? z.nb[0] : z.nb[1];
+    return { m: q < 0.17 ? 3 : q < 0.22 ? 2 : 1, n };
+  }
+  const keys = $('keys');
+  ['1','2','3','4','5','6','7','8','9','⌫','0','OK'].forEach(k =>
+    keys.insertAdjacentHTML('beforeend', `<button data-k="${k}"${k === 'OK' ? ' class="ok-key"' : ''}>${k}</button>`));
+  function scNew() {
+    clearAuto();
+    const z = pick(ZONES);
+    const d = [throwDart(z), throwDart(z), throwDart(z)];
+    const t = d.reduce((s, x) => s + val(x), 0);
+    const lo = Math.max(t + 40, 121);
+    const old = Math.random() < 0.15 ? 501 : lo + rnd(501 - lo);
+    sc = { darts: d, old, step: 1, input: '', locked: false };
+    $('sc-note').textContent = ''; $('sc-note').className = 'note';
+    $('sc-play').hidden = false; $('sc-entry').hidden = false; $('sc-q').hidden = false; $('sc-result').hidden = true;
+    scRender();
+    startTimer(scTimeout);
+  }
+  function scRender() {
+    $('sc-old').textContent = sc.old;
+    $('sc-slots').innerHTML = sc.darts.map(d => slotHTML(d, false)).join('');
+    $('sc-meta').innerHTML = `Schritt <b>${sc.step}</b> von 2`;
+    $('sc-q').textContent = sc.step === 1 ? 'Wie viele Punkte hat die Aufnahme?' : 'Wie viel bleibt jetzt übrig?';
+    $('sc-entry').textContent = sc.input || '0';
+    $('sc-entry').classList.toggle('empty', !sc.input);
+  }
+  function scTimeout() {
+    if (sc.step === 1) scStep1(null); else scStep2(null);
+  }
+  function scStep1(v) {
+    const t = total();
+    const ok = v === t;
+    score(ok);
+    const note = $('sc-note');
+    note.className = 'note ' + (ok ? 'ok' : 'bad');
+    note.textContent = ok ? `✓ Richtig, ${t} Punkte.` : `${v === null ? 'Zeit um. ' : ''}Es sind ${t}: ${sc.darts.map(val).join(' + ')}`;
+    sc.step = 2; sc.input = ''; scRender();
+    startTimer(scTimeout);
+  }
+  function scStep2(v) {
+    const t = total(), want = sc.old - t;
+    const ok = v === want;
+    score(ok);
+    sc.locked = true;
+    const base = t >= 50 ? Math.ceil(t / 100) * 100 : Math.ceil(t / 10) * 10;
+    const tip = base !== t ? `${sc.old} − ${base} = ${sc.old - base}, + ${base - t} = ${want}` : `${sc.old} − ${t} = ${want}`;
+    const co = STD[want] ? `<span class="hint">Checkout von ${want}:</span><span class="route">${routeText(STD[want][0])}</span>` : '';
+    const head = ok ? `<strong>Richtig, Rest ${want}.</strong>` : `<strong>${v === null ? 'Zeit um – ' : ''}Rest ist ${want}.</strong>`;
+    $('sc-q').hidden = true; $('sc-entry').hidden = true;
+    showResult($('sc-result'), [$('sc-play')], ok, `${head}<span class="hint">Trick: ${tip}</span>${co}`, scNew);
+  }
+  function press(k) {
+    if (sc.locked) return;
+    if (k === '⌫') sc.input = sc.input.slice(0, -1);
+    else if (k === 'OK') { if (!sc.input) return; const v = +sc.input; return sc.step === 1 ? scStep1(v) : scStep2(v); }
+    else if (sc.input.length < 3) sc.input = (sc.input + k).replace(/^0+/, '');
+    scRender();
+  }
+  keys.addEventListener('click', e => { const b = e.target.closest('button'); if (b) press(b.dataset.k); });
+  document.addEventListener('keydown', e => {
+    if ($('v-game').hidden || cfg.mode !== 'sc') return;
+    if (/^[0-9]$/.test(e.key)) press(e.key);
+    else if (e.key === 'Backspace') press('⌫');
+    else if (e.key === 'Enter') { e.preventDefault(); if (sc.locked) { clearAuto(); scNew(); } else press('OK'); }
+  });
+
+  // Offline-Fähigkeit nur in der installierten App
+  if (window.__PWA__ && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+
+</body>
+</html>
