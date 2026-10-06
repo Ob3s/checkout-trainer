@@ -191,6 +191,12 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh
         <button data-v="40">Bis 40</button><button data-v="100">Bis 100</button><button data-v="170">Bis 170</button>
       </div>
     </div>
+    <div class="setting" id="set-sc">
+      <span class="set-label">Fragen pro Aufnahme</span>
+      <div class="seg" id="seg-steps">
+        <button data-v="2">Punkte + Rest</button><button data-v="1">Nur Punkte</button>
+      </div>
+    </div>
     <div class="setting">
       <span class="set-label">Timer pro Frage</span>
       <div class="seg" id="seg-timer">
@@ -206,7 +212,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh
     <div class="start-foot">
       <button class="primary big" id="btn-start">Training starten</button>
       <button class="link" id="btn-cheat">Spickzettel</button>
-      <span class="ver">Version 1.1</span>
+      <span class="ver">Version 1.2</span>
     </div>
   </section>
 
@@ -255,7 +261,9 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh
       <p class="q" id="sc-q">Wie viele Punkte?</p>
       <div class="note" id="sc-note"></div>
       <div class="entry empty" id="sc-entry">0</div>
-      <div class="area" id="sc-play"><div class="keys" id="keys"></div></div>
+      <div class="area" id="sc-play"><div class="keys" id="keys"></div>
+        <div class="actions"><button id="sc-show">Lösung zeigen</button><button id="sc-skip">Überspringen</button></div>
+      </div>
       <div class="result" id="sc-result" hidden></div>
     </div>
   </section>
@@ -309,7 +317,7 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
   const CHECKABLE = Object.keys(STD).map(Number);
 
   // ---------- Einstellungen & Statistik ----------
-  const cfg = { mode: store.get('mode', 'co'), level: store.get('level', 100), timer: store.get('timer', 0), auto: store.get('auto', 1) };
+  const cfg = { mode: store.get('mode', 'co'), level: store.get('level', 100), timer: store.get('timer', 0), auto: store.get('auto', 1), steps: store.get('steps', 2) };
   const best = { co: store.get('best-co', 0), sc: store.get('best-sc', 0) };
   let st = { ok: 0, total: 0, streak: 0 };
 
@@ -323,9 +331,10 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
   function paintMode() {
     modeBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === cfg.mode)));
     $('set-level').hidden = cfg.mode !== 'co';
+    $('set-sc').hidden = cfg.mode !== 'sc';
   }
   modeBtns.forEach(b => b.addEventListener('click', () => { cfg.mode = b.dataset.mode; store.set('mode', cfg.mode); paintMode(); }));
-  segInit('seg-level', 'level'); segInit('seg-timer', 'timer'); segInit('seg-auto', 'auto');
+  segInit('seg-level', 'level'); segInit('seg-timer', 'timer'); segInit('seg-auto', 'auto'); segInit('seg-steps', 'steps');
   paintMode();
   function paintBest() { $('best-co').textContent = best.co; $('best-sc').textContent = best.sc; }
   paintBest();
@@ -346,7 +355,7 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
   $('btn-start').addEventListener('click', () => {
     st = { ok: 0, total: 0, streak: 0 };
     $('st-ok').textContent = '0/0'; $('st-streak').textContent = '0';
-    $('top-title').textContent = cfg.mode === 'co' ? `Checkout · bis ${cfg.level}` : 'Aufnahme zählen';
+    $('top-title').textContent = cfg.mode === 'co' ? `Checkout · bis ${cfg.level}` : (cfg.steps === 1 ? 'Punkte zählen' : 'Aufnahme zählen');
     $('g-co').hidden = cfg.mode !== 'co'; $('g-sc').hidden = cfg.mode !== 'sc';
     show('v-game');
     cfg.mode === 'co' ? coNew() : scNew();
@@ -491,9 +500,10 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
   }
   function scRender() {
     $('sc-old').textContent = sc.old;
+    $('sc-old').parentElement.hidden = cfg.steps === 1;
     $('sc-slots').innerHTML = sc.darts.map(d => slotHTML(d, false)).join('');
-    $('sc-meta').innerHTML = `Schritt <b>${sc.step}</b> von 2`;
-    $('sc-q').textContent = sc.step === 1 ? 'Wie viele Punkte hat die Aufnahme?' : 'Wie viel bleibt jetzt übrig?';
+    $('sc-meta').innerHTML = cfg.steps === 1 ? '' : `Schritt <b>${sc.step}</b> von 2`;
+    $('sc-q').textContent = sc.step === 1 ? 'Wie viele Punkte hat die Aufnahme?' : `Neuer Rest: ${sc.old} − ${total()} = ?`;
     $('sc-entry').textContent = sc.input || '0';
     $('sc-entry').classList.toggle('empty', !sc.input);
   }
@@ -504,6 +514,13 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
     const t = total();
     const ok = v === t;
     score(ok);
+    if (cfg.steps === 1) {
+      sc.locked = true;
+      $('sc-q').hidden = true; $('sc-entry').hidden = true;
+      const head = ok ? `<strong>Richtig, ${t} Punkte.</strong>` : `<strong>${v === null ? 'Zeit um – ' : ''}Es sind ${t} Punkte.</strong>`;
+      showResult($('sc-result'), [$('sc-play')], ok, `${head}<span class="hint">${sc.darts.map(label).join(' · ')}</span><span class="route">${sc.darts.map(val).join(' + ')} = ${t}</span>`, scNew);
+      return;
+    }
     const note = $('sc-note');
     note.className = 'note ' + (ok ? 'ok' : 'bad');
     note.textContent = ok ? `✓ Richtig, ${t} Punkte.` : `${v === null ? 'Zeit um. ' : ''}Es sind ${t}: ${sc.darts.map(val).join(' + ')}`;
@@ -529,6 +546,15 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
     else if (sc.input.length < 3) sc.input = (sc.input + k).replace(/^0+/, '');
     scRender();
   }
+  $('sc-skip').addEventListener('click', () => { stopTimer(); scNew(); });
+  $('sc-show').addEventListener('click', () => {
+    if (sc.locked) return;
+    const t = total(), want = sc.old - t;
+    score(false);
+    sc.locked = true; $('sc-q').hidden = true; $('sc-entry').hidden = true;
+    const co = cfg.steps === 2 && STD[want] ? `<span class="hint">Checkout von ${want}: ${routeText(STD[want][0])}</span>` : '';
+    showResult($('sc-result'), [$('sc-play')], false, `<strong>Lösung</strong><span class="route">${sc.darts.map(val).join(' + ')} = ${t}</span>${cfg.steps === 2 ? `<span class="route">${sc.old} − ${t} = ${want}</span>` : ''}${co}`, scNew);
+  });
   keys.addEventListener('click', e => { const b = e.target.closest('button'); if (b) press(b.dataset.k); });
   document.addEventListener('keydown', e => {
     if ($('v-game').hidden || cfg.mode !== 'sc') return;
@@ -538,7 +564,12 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
   });
 
   // Offline-Fähigkeit nur in der installierten App
-  if (window.__PWA__ && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if (window.__PWA__ && 'serviceWorker' in navigator) {
+    const had = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !reloaded) { reloaded = true; location.reload(); } });
+    navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {});
+  }
 })();
 </script>
 
