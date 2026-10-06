@@ -85,6 +85,8 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh
 .seg button[aria-pressed="true"] { background: var(--key-on); color: var(--key-on-ink); }
 .start-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
 .big { padding: 16px; font-size: 1.15rem; border-radius: 14px; }
+.ver { text-align: center; font-size: .72rem; color: var(--muted); }
+#err { position: fixed; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); z-index: 9; background: var(--red); color: #fff; border-radius: 10px; padding: 10px 12px; font-size: .85rem; user-select: text; -webkit-user-select: text; }
 .link { border: 0; background: transparent; color: var(--muted); padding: 8px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 
 /* ---- Game ---- */
@@ -163,6 +165,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
+<div id="err" hidden></div>
 <div id="app">
   <!-- START -->
   <section class="view" id="v-start">
@@ -203,6 +206,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh
     <div class="start-foot">
       <button class="primary big" id="btn-start">Training starten</button>
       <button class="link" id="btn-cheat">Spickzettel</button>
+      <span class="ver">Version 1.1</span>
     </div>
   </section>
 
@@ -279,6 +283,8 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh
 </div>
 
 <script>
+window.addEventListener('error', e => { const el = document.getElementById('err'); if (el) { el.hidden = false; el.textContent = 'Fehler: ' + (e.message || e) + (e.lineno ? ' (Zeile ' + e.lineno + ')' : ''); } });
+window.addEventListener('unhandledrejection', e => { const el = document.getElementById('err'); if (el) { el.hidden = false; el.textContent = 'Fehler: ' + (e.reason && e.reason.message || e.reason); } });
 (() => {
   const $ = id => document.getElementById(id);
   const store = {
