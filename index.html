@@ -112,6 +112,32 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh
 .slot.filled { border-style: solid; border-color: transparent; background: color-mix(in srgb, var(--panel-ink) 10%, transparent); color: var(--panel-ink); }
 .slot.t { color: #FF8A80; }
 .slot.d { color: #7FDCA6; }
+.board.split { flex-direction: row; align-items: center; gap: 12px; }
+.board .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.board .info .meta { text-align: left; }
+.board.solo { justify-content: center; }
+.dboard { flex: none; width: min(44vw, 25vh, 210px); aspect-ratio: 1; max-width: 100%; }
+#sc-panel { align-items: center; padding: 8px 12px 10px; gap: 4px; }
+.sc-info { align-self: stretch; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.sc-rest { display: flex; align-items: baseline; gap: 8px; }
+.sc-rest .mid-num { font-size: clamp(1.7rem, 5vh, 2.3rem); }
+#sc-dboard { width: min(84vw, 35vh, 360px); }
+@media (max-height: 640px) { #sc-dboard { width: min(84vw, 32vh, 360px); } #g-sc .entry { font-size: 1.7rem; } }
+#g-sc .keys { grid-template-columns: repeat(6, 1fr); min-height: 84px; }
+#g-sc .note { min-height: 1.3em; font-size: .88rem; }
+.board.solo #sc-dboard { width: min(88vw, 44vh, 380px); }
+.dboard svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.slots.small { gap: 5px; }
+.slots.small .slot { font-size: clamp(.95rem, 2.6vh, 1.2rem); padding: 2px; }
+.dart-in { transform-origin: 0 0; animation: thunk .26s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes thunk {
+  0% { transform: translate(0, -60px) scale(2.2); opacity: 0; }
+  70% { transform: translate(0, 0) scale(.94); opacity: 1; }
+  85% { transform: rotate(-3deg) scale(1.02); }
+  100% { transform: none; opacity: 1; }
+}
+.snd { width: 40px; height: 40px; padding: 0; flex: none; display: grid; place-items: center; }
+.snd svg { width: 20px; height: 20px; }
 .slot small { font-family: var(--body); font-size: .7rem; font-weight: 500; color: var(--panel-muted); margin-left: 4px; }
 
 .area { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -212,7 +238,7 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh
     <div class="start-foot">
       <button class="primary big" id="btn-start">Training starten</button>
       <button class="link" id="btn-cheat">Spickzettel</button>
-      <span class="ver">Version 1.2</span>
+      <span class="ver">Version 1.3</span>
     </div>
   </section>
 
@@ -222,17 +248,19 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh
       <button class="back" id="btn-back" aria-label="Zur Startseite">‹</button>
       <span class="top-title" id="top-title">Checkout</span>
       <span class="top-stats"><b id="st-ok">0/0</b> · Serie <b id="st-streak">0</b></span>
+      <button class="snd" id="btn-snd" aria-label="Ton an oder aus"></button>
     </div>
     <div class="timer" id="timer" hidden><div class="timer-fill" id="timer-fill"></div><span class="timer-txt" id="timer-txt"></span></div>
 
     <!-- Checkout -->
     <div class="view" id="g-co">
-      <div class="board">
-        <div class="row">
+      <div class="board split">
+        <div class="info">
           <div><div class="label">Rest</div><div class="big-num" id="co-rest">81</div></div>
-          <div class="meta">Geworfen <b id="co-thrown">0</b><br>Offen <b id="co-open">81</b></div>
+          <div class="meta">Geworfen <b id="co-thrown">0</b> · Offen <b id="co-open">81</b></div>
+          <div class="slots small" id="co-slots"></div>
         </div>
-        <div class="slots" id="co-slots"></div>
+        <div class="dboard" id="co-dboard"></div>
       </div>
       <div class="area" id="co-play">
         <div class="mult" id="mult">
@@ -251,12 +279,12 @@ h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 7vh
 
     <!-- Aufnahme -->
     <div class="view" id="g-sc" hidden>
-      <div class="board">
-        <div class="row">
-          <div><div class="label">Rest vorher</div><div class="mid-num" id="sc-old">301</div></div>
+      <div class="board" id="sc-panel">
+        <div class="sc-info" id="sc-info">
+          <div class="sc-rest"><span class="label">Rest vorher</span><span class="mid-num" id="sc-old">301</span></div>
           <div class="meta" id="sc-meta">Schritt <b>1</b> von 2</div>
         </div>
-        <div class="slots" id="sc-slots"></div>
+        <div class="dboard" id="sc-dboard"></div>
       </div>
       <p class="q" id="sc-q">Wie viele Punkte?</p>
       <div class="note" id="sc-note"></div>
@@ -316,8 +344,112 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
   const stdHTML = rest => STD[rest].map(routeText).join('<br>');
   const CHECKABLE = Object.keys(STD).map(Number);
 
+  // ---------- Dartscheibe ----------
+  const ORDER = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+  const R = { bull: 8, outer: 18, t1: 93, t2: 107, d1: 157, d2: 171, num: 200 };
+  const P = (r, deg) => { const a = deg * Math.PI / 180; return [r * Math.cos(a), r * Math.sin(a)]; };
+  const f = n => n.toFixed(2);
+  function sector(r1, r2, a1, a2) {
+    const [x1, y1] = P(r2, a1), [x2, y2] = P(r2, a2), [x3, y3] = P(r1, a2), [x4, y4] = P(r1, a1);
+    return `M${f(x1)} ${f(y1)}A${r2} ${r2} 0 0 1 ${f(x2)} ${f(y2)}L${f(x3)} ${f(y3)}A${r1} ${r1} 0 0 0 ${f(x4)} ${f(y4)}Z`;
+  }
+  const BOARD_SVG = (() => {
+    const C = { blk: '#1d1d1b', crm: '#EDE3C8', red: '#C93A2E', grn: '#1E8449', wire: '#A8ADA9' };
+    let o = `<circle r="228" fill="#111"/>`;
+    ORDER.forEach((n, i) => {
+      const a1 = -99 + i * 18, a2 = a1 + 18, even = i % 2 === 0;
+      const single = even ? C.blk : C.crm, ring = even ? C.red : C.grn;
+      o += `<path d="${sector(R.outer, R.t1, a1, a2)}" fill="${single}"/>`;
+      o += `<path d="${sector(R.t1, R.t2, a1, a2)}" fill="${ring}"/>`;
+      o += `<path d="${sector(R.t2, R.d1, a1, a2)}" fill="${single}"/>`;
+      o += `<path d="${sector(R.d1, R.d2, a1, a2)}" fill="${ring}"/>`;
+      const [tx, ty] = P(R.num, a1 + 9);
+      o += `<text x="${f(tx)}" y="${f(ty)}" fill="#F2F0E6" font-size="30" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Barlow Condensed, Arial Narrow, sans-serif">${n}</text>`;
+    });
+    let w = '';
+    for (let i = 0; i < 20; i++) { const a = -99 + i * 18, [x1, y1] = P(R.outer, a), [x2, y2] = P(R.d2, a); w += `M${f(x1)} ${f(y1)}L${f(x2)} ${f(y2)}`; }
+    o += `<path d="${w}" stroke="${C.wire}" stroke-width="1.2" fill="none"/>`;
+    [R.t1, R.t2, R.d1, R.d2].forEach(r => o += `<circle r="${r}" fill="none" stroke="${C.wire}" stroke-width="1.2"/>`);
+    o += `<circle r="${R.outer}" fill="${C.grn}" stroke="${C.wire}" stroke-width="1.2"/><circle r="${R.bull}" fill="${C.red}" stroke="${C.wire}" stroke-width="1.2"/>`;
+    return `<svg viewBox="-232 -232 464 464" role="img" aria-label="Dartscheibe">${o}<g class="darts"></g></svg>`;
+  })();
+  const FLIGHTS = ['#F5C518', '#3EC6F0', '#FF6FAE'];
+  const rr = (a, b) => a + Math.random() * (b - a);
+  // Trefferpunkt fuer einen Dart im passenden Feld
+  function hitPos(d) {
+    if (d.n === 25) {
+      const r = d.m === 2 ? rr(0, R.bull - 2.5) : rr(R.bull + 3, R.outer - 3);
+      return P(r, rr(0, 360));
+    }
+    const i = ORDER.indexOf(d.n), ang = -90 + i * 18 + rr(-6.5, 6.5);
+    let r;
+    if (d.m === 3) r = rr(R.t1 + 3, R.t2 - 3);
+    else if (d.m === 2) r = rr(R.d1 + 3, R.d2 - 3);
+    else r = Math.random() < 0.5 ? rr(R.outer + 12, R.t1 - 8) : rr(R.t2 + 8, R.d1 - 8);
+    return P(r, ang);
+  }
+  function dartSVG(d, i, delay) {
+    const [x, y] = d.pos, tx = d.tilt * 0.55, ty = -46;
+    const fl = FLIGHTS[i % 3], anim = delay !== null;
+    return `<g transform="translate(${f(x)} ${f(y)})"><g class="${anim ? 'dart-in' : ''}" style="${anim ? `animation-delay:${delay}s` : ''}">
+      <ellipse cx="${f(tx * .5 + 6)}" cy="6" rx="10" ry="5" fill="#000" opacity=".35"/>
+      <line x1="0" y1="0" x2="${f(tx * .45)}" y2="${f(ty * .45)}" stroke="#7d8486" stroke-width="5" stroke-linecap="round"/>
+      <line x1="${f(tx * .45)}" y1="${f(ty * .45)}" x2="${f(tx * .8)}" y2="${f(ty * .8)}" stroke="#2b2f31" stroke-width="4" stroke-linecap="round"/>
+      <path d="M${f(tx * .78)} ${f(ty * .78)}L${f(tx - 13)} ${f(ty - 8)}L${f(tx)} ${f(ty - 20)}L${f(tx + 13)} ${f(ty - 8)}Z" fill="${fl}" stroke="#000" stroke-opacity=".5" stroke-width="1.5"/>
+    </g></g>`;
+  }
+  // Spitzen extra obendrauf, damit kein Flight einen Treffer verdeckt
+  function tipSVG(d, delay) {
+    const [x, y] = d.pos, anim = delay !== null;
+    return `<g transform="translate(${f(x)} ${f(y)})"><g class="${anim ? 'dart-in' : ''}" style="${anim ? `animation-delay:${delay}s` : ''}"><circle r="5.5" fill="#fff" stroke="#000" stroke-width="2.5"/></g></g>`;
+  }
+  function placeDart(d) { if (!d.pos) { d.pos = hitPos(d); d.tilt = rr(-14, 14); } return d; }
+  const thudTimers = [];
+  // Ausschnitt um die Darts herum, damit man die Felder gut erkennt
+  function zoomTo(boardId, list) {
+    const svg = $(boardId).querySelector('svg');
+    if (!list.length) { svg.setAttribute('viewBox', '-232 -232 464 464'); return; }
+    const xs = [], ys = [];
+    list.forEach(d => { const [x, y] = d.pos; xs.push(x - 14, x + 14 + d.tilt * .55); ys.push(y + 10, y - 70); });
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const size = Math.min(464, Math.max(250, Math.max(...xs) - Math.min(...xs) + 90, Math.max(...ys) - Math.min(...ys) + 90));
+    const clamp = v => Math.max(-232, Math.min(232 - size, v));
+    svg.setAttribute('viewBox', `${f(clamp(cx - size / 2))} ${f(clamp(cy - size / 2))} ${f(size)} ${f(size)}`);
+  }
+  function drawDarts(boardId, list, freshFrom, gap = 0.3, zoom = false) {
+    const g = $(boardId).querySelector('.darts');
+    list.forEach(placeDart);
+    zoomTo(boardId, zoom ? list : []);
+    const dl = i => i >= freshFrom ? (i - freshFrom) * gap : null;
+    g.innerHTML = list.map((d, i) => dartSVG(d, i, dl(i))).join('') + list.map((d, i) => tipSVG(d, dl(i))).join('');
+    for (let i = freshFrom; i < list.length; i++) thudTimers.push(setTimeout(thud, ((i - freshFrom) * gap + 0.18) * 1000));
+  }
+  // Einschlag-Geraeusch (erst nach Antippen erlaubt) und kurzes Vibrieren
+  let actx = null;
+  function thud() {
+    if (!cfg.sound) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      const t = actx.currentTime, len = Math.floor(actx.sampleRate * 0.07);
+      const buf = actx.createBuffer(1, len, actx.sampleRate), ch = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+      const src = actx.createBufferSource(); src.buffer = buf;
+      const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400;
+      const g = actx.createGain(); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+      src.connect(lp).connect(g).connect(actx.destination); src.start(t);
+      const o = actx.createOscillator(), og = actx.createGain();
+      o.frequency.setValueAtTime(170, t); o.frequency.exponentialRampToValueAtTime(55, t + 0.08);
+      og.gain.setValueAtTime(0.5, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      o.connect(og).connect(actx.destination); o.start(t); o.stop(t + 0.11);
+    } catch (e) {}
+    try { navigator.vibrate && navigator.vibrate(14); } catch (e) {}
+  }
+  $('co-dboard').innerHTML = BOARD_SVG;
+  $('sc-dboard').innerHTML = BOARD_SVG;
+
   // ---------- Einstellungen & Statistik ----------
-  const cfg = { mode: store.get('mode', 'co'), level: store.get('level', 100), timer: store.get('timer', 0), auto: store.get('auto', 1), steps: store.get('steps', 2) };
+  const cfg = { mode: store.get('mode', 'co'), level: store.get('level', 100), timer: store.get('timer', 0), auto: store.get('auto', 1), steps: store.get('steps', 2), sound: store.get('sound', 1) };
   const best = { co: store.get('best-co', 0), sc: store.get('best-sc', 0) };
   let st = { ok: 0, total: 0, streak: 0 };
 
@@ -336,6 +468,11 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
   modeBtns.forEach(b => b.addEventListener('click', () => { cfg.mode = b.dataset.mode; store.set('mode', cfg.mode); paintMode(); }));
   segInit('seg-level', 'level'); segInit('seg-timer', 'timer'); segInit('seg-auto', 'auto'); segInit('seg-steps', 'steps');
   paintMode();
+  const SND_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+  const SND_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+  function paintSnd() { $('btn-snd').innerHTML = cfg.sound ? SND_ON : SND_OFF; $('btn-snd').setAttribute('aria-pressed', String(!!cfg.sound)); }
+  $('btn-snd').addEventListener('click', () => { cfg.sound = cfg.sound ? 0 : 1; store.set('sound', cfg.sound); paintSnd(); if (cfg.sound) thud(); });
+  paintSnd();
   function paintBest() { $('best-co').textContent = best.co; $('best-sc').textContent = best.sc; }
   paintBest();
 
@@ -428,7 +565,7 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
     if (r === rest) r = pick(pool);
     rest = r; darts = []; coDone = false;
     $('co-play').hidden = false; $('co-result').hidden = true;
-    setMult(1); coRender();
+    setMult(1); drawDarts('co-dboard', [], 0); coRender();
     startTimer(() => coFinish(false, `<strong>Zeit abgelaufen.</strong><span class="hint">Gängiger Weg für ${rest}:</span><span class="route">${stdHTML(rest)}</span>`));
   }
   function coRender() {
@@ -436,7 +573,7 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
     $('co-rest').textContent = rest;
     $('co-thrown').textContent = thrown;
     $('co-open').textContent = rest - thrown;
-    $('co-slots').innerHTML = [0, 1, 2].map(i => slotHTML(darts[i], true)).join('');
+    $('co-slots').innerHTML = [0, 1, 2].map(i => slotHTML(darts[i], false)).join('');
     $('co-undo').disabled = darts.length === 0;
   }
   function coFinish(ok, html) {
@@ -466,11 +603,18 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
   nums.addEventListener('click', e => {
     const b = e.target.closest('button[data-n]'); if (!b || coDone) return;
     const n = +b.dataset.n; if (n === 25 && mult === 3) return;
-    darts.push({ m: mult, n }); setMult(1); coCheck();
+    darts.push({ m: mult, n }); setMult(1);
+    drawDarts('co-dboard', darts, darts.length - 1);
+    coCheck();
   });
-  $('co-undo').addEventListener('click', () => { if (!coDone) { darts.pop(); coRender(); } });
+  $('co-undo').addEventListener('click', () => { if (!coDone) { darts.pop(); drawDarts('co-dboard', darts, darts.length); coRender(); } });
   multBtns.forEach(b => b.addEventListener('click', () => setMult(+b.dataset.m)));
-  $('co-show').addEventListener('click', () => coFinish(false, `<strong>Lösung für ${rest}</strong><span class="route">${stdHTML(rest)}</span>`));
+  $('co-show').addEventListener('click', () => coSolution() || coFinish(false, `<strong>Lösung für ${rest}</strong><span class="route">${stdHTML(rest)}</span>`));
+  // Loesungsweg auf die Scheibe werfen, wenn noch nichts geworfen wurde
+  function coSolution() {
+    if (!coDone && !darts.length) drawDarts('co-dboard', STD[rest][0].map(d => ({ ...d })), 0, 0.35);
+    return false;
+  }
   $('co-skip').addEventListener('click', () => { stopTimer(); coNew(); });
 
   // ---------- Aufnahme zählen ----------
@@ -483,7 +627,7 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
     return { m: q < 0.17 ? 3 : q < 0.22 ? 2 : 1, n };
   }
   const keys = $('keys');
-  ['1','2','3','4','5','6','7','8','9','⌫','0','OK'].forEach(k =>
+  ['1','2','3','4','5','6','7','8','9','0','⌫','OK'].forEach(k =>
     keys.insertAdjacentHTML('beforeend', `<button data-k="${k}"${k === 'OK' ? ' class="ok-key"' : ''}>${k}</button>`));
   function scNew() {
     clearAuto();
@@ -493,6 +637,7 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
     const lo = Math.max(t + 40, 121);
     const old = Math.random() < 0.15 ? 501 : lo + rnd(501 - lo);
     sc = { darts: d, old, step: 1, input: '', locked: false };
+    drawDarts('sc-dboard', sc.darts, 0);
     $('sc-note').textContent = ''; $('sc-note').className = 'note';
     $('sc-play').hidden = false; $('sc-entry').hidden = false; $('sc-q').hidden = false; $('sc-result').hidden = true;
     scRender();
@@ -500,8 +645,8 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
   }
   function scRender() {
     $('sc-old').textContent = sc.old;
-    $('sc-old').parentElement.hidden = cfg.steps === 1;
-    $('sc-slots').innerHTML = sc.darts.map(d => slotHTML(d, false)).join('');
+    $('sc-panel').classList.toggle('solo', cfg.steps === 1);
+    $('sc-info').style.visibility = cfg.steps === 1 ? 'hidden' : '';
     $('sc-meta').innerHTML = cfg.steps === 1 ? '' : `Schritt <b>${sc.step}</b> von 2`;
     $('sc-q').textContent = sc.step === 1 ? 'Wie viele Punkte hat die Aufnahme?' : `Neuer Rest: ${sc.old} − ${total()} = ?`;
     $('sc-entry').textContent = sc.input || '0';
@@ -523,7 +668,7 @@ window.addEventListener('unhandledrejection', e => { const el = document.getElem
     }
     const note = $('sc-note');
     note.className = 'note ' + (ok ? 'ok' : 'bad');
-    note.textContent = ok ? `✓ Richtig, ${t} Punkte.` : `${v === null ? 'Zeit um. ' : ''}Es sind ${t}: ${sc.darts.map(val).join(' + ')}`;
+    note.textContent = ok ? `✓ Richtig, ${t} Punkte (${sc.darts.map(label).join(' · ')}).` : `${v === null ? 'Zeit um. ' : ''}Es sind ${t}: ${sc.darts.map(label).join(' · ')} = ${sc.darts.map(val).join(' + ')}`;
     sc.step = 2; sc.input = ''; scRender();
     startTimer(scTimeout);
   }
